@@ -32,6 +32,9 @@ def train_loop(dataloader, model, optimizer, lr_scheduler, epoch, total_loss):
         optimizer.step()
         lr_scheduler.step()
 
+        # result = model(input_ids)
+        # print(result)
+
         total_loss += loss.item()
         progress_bar.set_description(
             f"loss: {total_loss/(finish_batch_num + batch):>7f}"
