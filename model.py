@@ -93,26 +93,30 @@ class BERT_CRF(nn.Module):
                 # 当前单词的前向 tensor
                 alphas_t = []
 
-                for next_tag in range(self.tagset_size):
+                for current_tag in range(self.tagset_size):  # 将当前位置单词所有标签的分数累积
+                    # next_tag表示当前单词被视为的标签
+
                     # 取出当前单词对应当前 tag 的发射分数
-                    emit_score = feat[next_tag].view(1, -1).expand(1, self.tagset_size)
+                    emit_score = feat[current_tag].view(1, -1).expand(1, self.tagset_size)  # [1, 7]
 
                     # 取出当前 tag 由之前的 tag 转移过来的分数
-                    trans_score = self.transitions[next_tag].view(1, -1)
+                    # 如果有7个 tag，则是7个 tag 分别转移过来的分数
+                    trans_score = self.transitions[current_tag].view(1, -1)  # [1, 7]
 
+                    # 矩阵中每一个位置表示一个路径的分数
                     # 当前路径的分数 = 之前时间步（单词）分数 + 转移分数 + 发射分数
-                    next_tag_var = forward_var + trans_score + emit_score
+                    current_tag_var = forward_var + trans_score + emit_score  # [1, 7]
 
-                    # 对当前分数取 log—sum-exp
-                    alphas_t.append(log_sum_exp(next_tag_var).view(1))
+                    # 对当前分数取 log—sum-exp，表示各个 tag 转移到当前 tag 的分数和
+                    alphas_t.append(log_sum_exp(current_tag_var).view(1))
 
-                # 更新用于存储之前时间步的分数，用于下一个时间步的分数计算
-                forward_var = torch.cat(alphas_t).view(1, -1)
+                # 更新用于存储到当前单词的分数，用于下一个时间步的分数计算
+                forward_var = torch.cat(alphas_t).view(1, -1)  # [1, 7]
 
-            # 最终要转移到 STOP tag
+            # 最终要转移到 STOP tag，因此累加上到 STOP 的转移分数
             terminal_var = forward_var + self.transitions[self.tag_to_ix["<STOP>"]]
 
-            # 计算最终分数
+            # 计算当前句子的最终分数
             alpha = log_sum_exp(terminal_var)
             result[0][idx] = alpha
             idx += 1
