@@ -178,31 +178,34 @@ class BERT_CRF(nn.Module):
             init_vvars[0][self.tag_to_ix["<START>"]] = 0
 
             # 将初始化的变量赋值给 forward_var
-            # 在第 i 个时间步中, forward_var 保存的是第 i-1 个时间步的 viterbi 变量
+            # forward_var表示当前这个字被标注为各个tag的分数
             forward_var = init_vvars
             # 遍历每一个时间步
             for feat in feat_line:
-                # 保存当前时间步的回溯指针
+                # 保存当前时间步的回溯指针，取当前tag时，最有可能来自的tag
                 bptrs_t = []
                 # 保存当前时间步的 viterbi 变量
                 viterbivars_t = []
                 # 遍历所有可能的转移标签
-                for next_tag in range(self.tagset_size):
+                for current_tag in range(self.tagset_size):
                     # viterbi 算法记录最优路径时只考虑上一步的分数
                     # 以及上一步的 tag 转移到当前 tag 的转移分数
                     # 不考虑当前 tag 的发射分数
                     # forward_var 保存的是之前的最优路径的值
-                    next_tag_var = forward_var + self.transitions[next_tag]
-                    # 找到最大值对应的 tag
-                    best_tag_id = argmax(next_tag_var)
+                    current_tag_var = forward_var + self.transitions[current_tag]  # [1, 7]
+                    # 上一个字中哪一个转移到当前tag的分数最大，记录下最大的tag的id
+                    best_tag_id = argmax(current_tag_var)
                     bptrs_t.append(best_tag_id)
-                    viterbivars_t.append(next_tag_var[0][best_tag_id].view(1))
+                    # 最大的得分也保存下来
+                    viterbivars_t.append(current_tag_var[0][best_tag_id].view(1))
                 # 此处再将发射矩阵的分数feat添加上来, 继续赋值给forward_var, 作为下一个time_step的前向传播变量
-                forward_var = (torch.cat(viterbivars_t) + feat).view(1, -1)
+                # 此刻，意味着当前时间步，取各个tag时的最大值路径得分
+                forward_var = (torch.cat(viterbivars_t) + feat).view(1, -1)  # [1, 7]
                 # 将当前time_step的回溯指针添加进当前样本行的总体回溯指针中
-                backpointers.append(bptrs_t)
+                # 得到的是从上一个字的tag转移到当前字的每个tag的最优路径
+                backpointers.append(bptrs_t)  # bptrs_t: [1, 7]
 
-            # 最后加上转移到STOP_TAG的分数
+            # 最后加上其他tag转移到STOP_TAG的分数
             terminal_var = forward_var + self.transitions[self.tag_to_ix["<STOP>"]]
             best_tag_id = argmax(terminal_var)
 

@@ -10,7 +10,7 @@ from torch.utils.data import Dataset, random_split, DataLoader
 from transformers import BertTokenizer, BertModel
 
 tokenizer = BertTokenizer.from_pretrained("bert-base-chinese")
-MAX_LENGTH = 373
+MAX_LENGTH = 50
 # 开始字符和结束字符
 START_TAG = "<START>"
 STOP_TAG = "<STOP>"
@@ -65,24 +65,30 @@ class NERDataset(Dataset):
     def get_tag_list(self):
         return self.labels
 
+
 def collate_fn_wo_bert(batch_samples):
     sents = [i[0] for i in batch_samples]
     labels = [i[1] for i in batch_samples]
+    max_len_in_batch = max([len(sent) for sent in sents])
 
     data = tokenizer.batch_encode_plus(
         batch_text_or_text_pairs=sents,
         truncation=True,
         padding="max_length",
-        max_length=MAX_LENGTH,
+        max_length=max_len_in_batch,
         return_tensors="pt",
         return_length=True,
     )
-    
+
     labels_ids = []
     for label in labels:
-        label_id_list = [tag_to_ix[l] for l in label]
-        padding_list = [0] * (MAX_LENGTH - len(label))
-        label_id_list.extend(padding_list)
+        if len(label) <= max_len_in_batch:
+            label_id_list = [tag_to_ix[l] for l in label]
+            padding_list = [0] * (max_len_in_batch - len(label))
+            label_id_list.extend(padding_list)
+        else:
+            label_id_list = [tag_to_ix[label[idx]] for idx in range(0, 50)]
+
         labels_ids.append(label_id_list)
 
     label_ids = torch.tensor(labels_ids, dtype=torch.long)
@@ -90,6 +96,7 @@ def collate_fn_wo_bert(batch_samples):
     attention_mask = data["attention_mask"]
     token_type_ids = data["token_type_ids"]
     return input_ids, attention_mask, token_type_ids, label_ids
+
 
 # train_dataset = NERDataset(data_file="datasets/ner_data.txt")
 # print(f"train set size: {len(train_dataset)}")

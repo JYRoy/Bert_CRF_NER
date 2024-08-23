@@ -8,7 +8,7 @@ from transformers import AdamW, get_scheduler
 from model import *
 from dataloader import *
 
-EPOCH_NUM = 1
+EPOCH_NUM = 100
 
 
 def train_loop(dataloader, model, optimizer, lr_scheduler, epoch, total_loss):
@@ -32,8 +32,8 @@ def train_loop(dataloader, model, optimizer, lr_scheduler, epoch, total_loss):
         optimizer.step()
         lr_scheduler.step()
 
-        # result = model(input_ids)
-        # print(result)
+        result = model(input_ids)
+        print(result)
 
         total_loss += loss.item()
         progress_bar.set_description(
@@ -43,7 +43,7 @@ def train_loop(dataloader, model, optimizer, lr_scheduler, epoch, total_loss):
     return total_loss
 
 
-train_dataset = NERDataset(data_file="datasets/ner_data.txt")
+train_dataset = NERDataset(data_file="datasets/ner_data_mini.txt")
 print(f"train set size: {len(train_dataset)}")
 sentence_list = train_dataset.get_sentence_list()
 
@@ -60,10 +60,10 @@ for sentence in sentence_list:
 print("max_sentence_length: ", max_sentence_length)
 
 train_dataloader = DataLoader(
-    train_dataset, batch_size=4, shuffle=True, collate_fn=collate_fn_wo_bert
+    train_dataset, batch_size=2, shuffle=False, collate_fn=collate_fn_wo_bert
 )
 valid_dataloader = DataLoader(
-    train_dataset, batch_size=4, shuffle=True, collate_fn=collate_fn_wo_bert
+    train_dataset, batch_size=2, shuffle=True, collate_fn=collate_fn_wo_bert
 )
 
 model = BERT_CRF(
